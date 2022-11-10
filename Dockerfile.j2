@@ -11,6 +11,8 @@ FROM {{image}} as amd64
 RUN apt update && apt install -y qemu-user-static
 FROM arm32v7/{{image}} as system
 COPY --from=amd64 /usr/bin/qemu-arm-static /usr/bin/
+{% elif arch == "arm64" %}
+FROM --platform=arm64 {{image}} as system
 {%endif%}
 
 RUN sed -i 's#http://archive.ubuntu.com/ubuntu/#http://mirrors.cloud.tencent.com/ubuntu/#' /etc/apt/sources.list;
@@ -29,16 +31,23 @@ RUN apt update \
     && rm -rf /var/lib/apt/lists/*
 {%if image == "ubuntu:18.04"%}
 ENV X11VNC_VERSION=0.9.16-1
+ENV X11VNC_DATA=0.9.16-1
 {%else%}
 ENV X11VNC_VERSION=0.9.14-1*
+ENV X11VNC_DATA=0.9.14-1*
 # arc-theme
 RUN add-apt-repository -y ppa:noobslab/themes
 {%endif%}
+
+{% if arch == "arm64" %}
+ENV X11VNC_VERSION=0.9.13-3 
+ENV X11VNC_DATA=0.9.13-3
+{% endif %}
 # install debs error if combine together
 RUN add-apt-repository -y ppa:fcwu-tw/apps \
     && apt update \
     && apt install -y --no-install-recommends --allow-unauthenticated \
-        xvfb x11vnc=$X11VNC_VERSION \
+        xvfb x11vnc=$X11VNC_VERSION x11vnc-data=$X11VNC_DATA \
         {%for package in addon_packages%}{{package}} {%endfor%} \
     && add-apt-repository -r ppa:fcwu-tw/apps \
     && apt autoclean -y \
@@ -73,7 +82,8 @@ RUN apt update \
 
 # tini for subreap
 ARG TINI_VERSION=v0.18.0
-ADD https://github.com/krallin/tini/releases/download/${TINI_VERSION}/tini-{{arch}} /bin/tini
+## ADD https://github.com/krallin/tini/releases/download/${TINI_VERSION}/tini-{{arch}} /bin/tini
+ADD tini/tini-{{arch}} /bin/tini
 RUN chmod +x /bin/tini
 
 # ffmpeg
@@ -102,11 +112,12 @@ RUN apt-get update \
 ################################################################################
 # builder
 ################################################################################
+{% if arch == "amd64" %}
 FROM {{image}} as builder
+{% elif arch == "arm64" %}
+FROM --platform=arm64 {{image}} as builder
+{% endif %}
 
-# {% if localbuild == 1 %}
-# RUN sed -i 's#http://archive.ubuntu.com/ubuntu/#http://mirrors.cloud.tencent.com/ubuntu/#' /etc/apt/sources.list;
-# {% endif %}
 RUN sed -i 's#http://archive.ubuntu.com/ubuntu/#http://mirrors.cloud.tencent.com/ubuntu/#' /etc/apt/sources.list;
 
 RUN apt-get update \
@@ -128,10 +139,6 @@ RUN cd /src/web \
     && yarn \
     && yarn build
 RUN sed -i 's#app/locale/#novnc/app/locale/#' /src/web/dist/static/novnc/app/ui.js
-
-{%if arch == "armhf"%}
-RUN cd /src/web/dist/static/novnc && patch -p0 < /src/web/novnc-armhf-1.patch
-{%endif%}
 
 ################################################################################
 # merge

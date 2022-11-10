@@ -1,18 +1,18 @@
 .PHONY: build run
 
 # Default values for variables
-REPO  ?= dorowu/ubuntu-desktop-lxde-vnc
-TAG   ?= latest
+REPO  ?= zhongzhaoqun/ubuntu18-lxqt
+TAG   ?= ros-melodic-arm64
 # you can choose other base image versions
 IMAGE ?= ubuntu:18.04
 LOCALBUILD ?= tw
-HTTP_PASSWORD ?= 123456
-CUSTOM_USER ?= ubuntu
-PASSWORD ?= ubuntu
+# HTTP_PASSWORD ?= 123456
+# CUSTOM_USER ?= ubuntu
+# PASSWORD ?= ubuntu
 # choose from supported flavors (see available ones in ./flavors/*.yml)
 FLAVOR ?= lxqt
 # armhf or amd64
-ARCH ?= amd64
+ARCH ?= arm64
 
 # These files will be generated from teh Jinja templates (.j2 sources)
 templates = Dockerfile rootfs/etc/supervisor/conf.d/supervisord.conf
@@ -25,13 +25,10 @@ build: $(templates)
 #  the local dir will be mounted under /src read-only
 run:
 	docker run --rm \
-		-p 6080:80 -p 6081:443 \
-		-v ${PWD}:/src:rw \
+		-p 6080:80 \
+		-v ${PWD}:/host-context:rw \
 		-e ALSADEV=hw:2,0 \
-		-e SSL_PORT=443 \
-		-e RELATIVE_URL_ROOT=approot \
-		-v ${PWD}/ssl:/etc/nginx/ssl \
-		--name ubuntu-desktop-lxde-test \
+		--name ubuntu18-lxqt-first \
 		$(REPO):$(TAG)
 
 # Connect inside the running container for debugging
