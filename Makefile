@@ -19,20 +19,18 @@ templates = Dockerfile rootfs/etc/supervisor/conf.d/supervisord.conf
 
 # Rebuild the container image
 build: $(templates)
-	docker build -t $(REPO):$(TAG) .
+	docker buildx build --platform linux/$(ARCH) --tag $(REPO):$(TAG) --load .
 
 # Test run the container
 #  the local dir will be mounted under /src read-only
 run:
 	docker run --rm \
 		-p 6080:80 -p 6081:443 \
-		-v ${PWD}:/src:ro \
-		-e USER=doro -e PASSWORD=mypassword \
+		-v ${PWD}:/src:rw \
 		-e ALSADEV=hw:2,0 \
 		-e SSL_PORT=443 \
 		-e RELATIVE_URL_ROOT=approot \
 		-v ${PWD}/ssl:/etc/nginx/ssl \
-		--device /dev/snd \
 		--name ubuntu-desktop-lxde-test \
 		$(REPO):$(TAG)
 
